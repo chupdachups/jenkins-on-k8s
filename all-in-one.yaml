@@ -83,6 +83,9 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: system:serviceaccounts:jenkins
+#- apiGroup: rbac.authorization.k8s.io
+#  kind: Group
+#  name: system:serviceaccounts:jenkins-agent
 ---
 apiVersion: v1
 kind: ServiceAccount
