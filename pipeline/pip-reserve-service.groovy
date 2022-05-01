@@ -49,7 +49,7 @@ spec:
 	   steps {
 	     container ('git') {
 		   sh """
-		     git clone -b docker-build https://github.com/chupdachups/reserve-backend-app.git
+		     git clone -b docker-build https://github.com/chupdachups/reserve-backend-app.git reserve-service
 		   """
 		 }
 	   }
