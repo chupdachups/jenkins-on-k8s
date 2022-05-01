@@ -58,7 +58,7 @@ spec:
       steps {
         container('maven') {
           sh """
-	mvn -f product-service/pom.xml package -DskipTests
+			mvn -f product-service/pom.xml package -DskipTests -Pdev
           """
         }
       }

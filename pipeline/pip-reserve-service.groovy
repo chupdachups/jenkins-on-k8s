@@ -58,7 +58,7 @@ spec:
       steps {
         container('maven') {
           sh """
-	mvn -f reserve-service/pom.xml package -DskipTests
+			mvn -f reserve-service/pom.xml package -DskipTests -Pdev
           """
         }
       }
@@ -67,7 +67,7 @@ spec:
       steps {
         container('docker') {
           sh """
-             docker build -t chupdachups/reserve-service:$BUILD_NUMBER -f reserve-service/dockerfile reserve-service
+			docker build -t chupdachups/reserve-service:$BUILD_NUMBER -f reserve-service/dockerfile reserve-service
           """
         }
       }
@@ -76,7 +76,7 @@ spec:
       steps {
         container('docker') {
           sh """
-             docker login -u chupdachups -p '!Kamika911'
+			docker login -u chupdachups -p '!Kamika911'
           """
         }
       }
@@ -85,7 +85,7 @@ spec:
       steps {
         container('docker') {
           sh """
-             docker push chupdachups/reserve-service:$BUILD_NUMBER
+			docker push chupdachups/reserve-service:$BUILD_NUMBER
           """
         }
       }
