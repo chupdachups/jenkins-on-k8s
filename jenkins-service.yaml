@@ -1,0 +1,14 @@
+#https://github.com/jenkins-infra/jenkins.io/tree/master/content/doc/tutorials/kubernetes/installing-jenkins-on-kubernetes
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: jenkins
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: jenkins

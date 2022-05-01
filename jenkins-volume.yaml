@@ -1,0 +1,16 @@
+#https://github.com/jenkins-infra/jenkins.io/tree/master/content/doc/tutorials/kubernetes/installing-jenkins-on-kubernetes
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jenkins-pv
+  namespace: jenkins
+spec:
+  storageClassName: jenkins-pv
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 7Gi
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/jenkins-volume/

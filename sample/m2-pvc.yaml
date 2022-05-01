@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: m2
+  namespace: jenkins-workspace
+spec:
+  storageClassName: managed-nfs-storage # SAME NAME AS THE STORAGECLASS
+  accessModes:
+    - ReadWriteMany #  must be the same as PersistentVolume
+  resources:
+    requests:
+      storage: 5Gi
