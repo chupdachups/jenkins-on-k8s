@@ -34,6 +34,11 @@ spec:
     volumeMounts:
     - mountPath: /var/run/docker.sock
       name: docker-sock
+  - name: curl
+    image: alpine/curl:3.14
+    command:
+    - cat
+    tty: true
   volumes:
     - name: docker-sock
       hostPath:
@@ -90,5 +95,194 @@ spec:
         }
       }
     }
+	stage('deploy-deploy') {
+	  steps {
+	    container('curl') {
+		  sh """
+		    #내부 API 서버 호스트 이름을 가리킨다
+			APISERVER=https://kubernetes.default.svc
+			echo \${APISERVER}
+
+			#서비스어카운트(ServiceAccount) 토큰 경로
+			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
+
+			#이 파드의 네임스페이스를 읽는다
+			NAMESPACE=\$(cat \${SERVICEACCOUNT}/namespace)
+
+			#서비스어카운트 베어러 토큰을 읽는다
+			TOKEN=\$(cat \${SERVICEACCOUNT}/token)
+
+			#내부 인증 기관(CA)을 참조한다
+			CACERT=\${SERVICEACCOUNT}/ca.crt
+			
+			# TOKEN으로 API를 탐색한다
+			curl --cacert \${CACERT} \\
+			--header "Authorization: Bearer \${TOKEN}" \\
+			-X POST \${APISERVER}/apis/apps/v1/namespaces/\${NAMESPACE}/deployments \\
+			--header 'Content-Type: application/json' \\
+			--data-raw '{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "reserve-service",
+    "namespace": "jenkins-workspace",
+    "labels": {
+      "app": "reserve-service"
+    }
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "reserve-service"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "reserve-service"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "reserve-service",
+            "image": "chupdachups/reserve-service:latest",
+            "ports": [
+              {
+                "containerPort": 8070
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}'
+		  """
+		}
+	  }
+	}
+	stage('deploy-patch') {
+	  steps {
+	    container('curl') {
+		  sh """
+			APISERVER=https://kubernetes.default.svc
+			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
+			NAMESPACE=\$(cat \${SERVICEACCOUNT}/namespace)
+			TOKEN=\$(cat \${SERVICEACCOUNT}/token)
+			CACERT=\${SERVICEACCOUNT}/ca.crt
+			curl --cacert \${CACERT} \\
+			--header "Authorization: Bearer \${TOKEN}" \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/\${NAMESPACE}/deployments \\
+			--header 'application/strategic-merge-patch+json' \\
+			--data-raw '{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "reserve-service",
+    "namespace": "jenkins-workspace",
+    "labels": {
+      "app": "reserve-service"
+    }
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "reserve-service"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "reserve-service"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "reserve-service",
+            "image": "chupdachups/reserve-service:latest",
+            "ports": [
+              {
+                "containerPort": 8070
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}'
+		  """
+		}
+	  }
+	}
+	stage('deploy-service') {
+	  steps {
+	    container('curl') {
+		  sh """
+			APISERVER=https://kubernetes.default.svc
+			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
+			NAMESPACE=\$(cat \${SERVICEACCOUNT}/namespace)
+			TOKEN=\$(cat \${SERVICEACCOUNT}/token)
+			CACERT=\${SERVICEACCOUNT}/ca.crt
+			curl --cacert \${CACERT} \\
+			--header "Authorization: Bearer \${TOKEN}" \\
+			-X POST \${APISERVER}/api/v1/namespaces/\${NAMESPACE}/services \\
+			--header 'Content-Type: application/json' \\
+			--data-raw '{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "reserve-service",
+    "namespace": "jenkins-workspace"
+  },
+  "spec": {
+    "type": "ClusterIP",
+    "ports": [
+      {
+        "port": 8070,
+        "targetPort": 8070
+      }
+    ],
+    "selector": {
+      "app": "reserve-service"
+    }
+  }
+}'
+		  """
+		}
+	  }
+	}
+    stage('rollout') {
+	  steps {
+	    container('curl') {
+		  sh """
+			APISERVER=https://kubernetes.default.svc
+			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
+			NAMESPACE=\$(cat \${SERVICEACCOUNT}/namespace)
+			TOKEN=\$(cat \${SERVICEACCOUNT}/token)
+			CACERT=\${SERVICEACCOUNT}/ca.crt
+			curl --cacert \${CACERT} \\
+			--header "Authorization: Bearer \${TOKEN}" \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/jenkins-workspace/deployments/reserve-service \\
+			--header 'Content-Type: application/strategic-merge-patch+json' \\
+			--data-raw '{
+    "spec": {
+        "template": {
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/restartedAt": "<time.Now()>"
+                }
+            }
+        }
+    }
+}'
+		  """
+		}
+      }
+	}
   }
 }
