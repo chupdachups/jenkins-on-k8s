@@ -83,51 +83,25 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: system:serviceaccounts:jenkins
-#- apiGroup: rbac.authorization.k8s.io
-#  kind: Group
-#  name: system:serviceaccounts:jenkins-agent
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: jenkins-agent
+  name: jenkins-worker
   namespace: jenkins-workspace
 ---
-kind: Role
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: jenkins-agent
-  namespace: jenkins-workspace
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["create","delete","get","list","patch","update","watch"]
-- apiGroups: [""]
-  resources: ["pods/exec"]
-  verbs: ["create","delete","get","list","patch","update","watch"]
-- apiGroups: [""]
-  resources: ["pods/log"]
-  verbs: ["get","list","watch"]
-- apiGroups: [""]
-  resources: ["events"]
-  verbs: ["watch"]
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get"]
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: jenkins
-  namespace: jenkins-workspace
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: jenkins-agent
+  name: jenkins-worker
 subjects:
 - kind: ServiceAccount
-  name: jenkins-agent
+  name: jenkins-worker
+  namespace: jenkins-workspace
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
 kind: Deployment

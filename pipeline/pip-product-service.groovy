@@ -152,7 +152,7 @@ spec:
             "image": "chupdachups/product-service:latest",
             "ports": [
               {
-                "containerPort": 8070
+                "containerPort": 8071
               }
             ]
           }
@@ -208,7 +208,7 @@ spec:
             "image": "chupdachups/product-service:latest",
             "ports": [
               {
-                "containerPort": 8070
+                "containerPort": 8071
               }
             ]
           }
@@ -245,8 +245,8 @@ spec:
     "type": "ClusterIP",
     "ports": [
       {
-        "port": 8070,
-        "targetPort": 8070
+        "port": 8071,
+        "targetPort": 8071
       }
     ],
     "selector": {

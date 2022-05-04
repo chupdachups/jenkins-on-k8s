@@ -11,7 +11,7 @@ labels:
   component: cicd
 spec:
   # Use service account that can deploy to all namespaces
-  serviceAccountName: jenkins-test-admin
+  serviceAccountName: jenkins-worker
   containers:
   - name: git
     image: alpine/git:v2.34.2
@@ -25,7 +25,7 @@ spec:
     tty: true
     volumeMounts:
       - mountPath: "/root/.m2"
-        name: m2
+        name: m2-new
   - name: docker
     image: docker:20.10.14-dind-alpine3.15
     command:
@@ -43,12 +43,9 @@ spec:
     - name: docker-sock
       hostPath:
         path: /var/run/docker.sock
-    - name: m2
+    - name: m2-new
       persistentVolumeClaim:
-        claimName: m2
-    - name: kubeconfig
-      hostPath:
-        path: /home/azureuser/.kube/config
+        claimName: m2-new
 """
 }
    }
@@ -57,7 +54,7 @@ spec:
 	   steps {
 	     container ('git') {
 		   sh """
-		     git clone -b docker-build https://github.com/chupdachups/account-backend-app.git account-service
+		     git clone -b k8s https://github.com/chupdachups/account-backend-app.git account-service
 		   """
 		 }
 	   }
@@ -123,14 +120,14 @@ spec:
 			# TOKEN으로 API를 탐색한다
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X POST \${APISERVER}/apis/apps/v1/namespaces/\${NAMESPACE}/deployments \\
+			-X POST \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments \\
 			--header 'Content-Type: application/json' \\
 			--data-raw '{
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
     "name": "account-service",
-    "namespace": "jenkins-workspace",
+    "namespace": "msa-service",
     "labels": {
       "app": "account-service"
     }
@@ -179,14 +176,14 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/\${NAMESPACE}/deployments \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments \\
 			--header 'application/strategic-merge-patch+json' \\
 			--data-raw '{
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
     "name": "account-service",
-    "namespace": "jenkins-workspace",
+    "namespace": "msa-service",
     "labels": {
       "app": "account-service"
     }
@@ -235,14 +232,14 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X POST \${APISERVER}/api/v1/namespaces/\${NAMESPACE}/services \\
+			-X POST \${APISERVER}/api/v1/namespaces/msa-service/services \\
 			--header 'Content-Type: application/json' \\
 			--data-raw '{
   "apiVersion": "v1",
   "kind": "Service",
   "metadata": {
     "name": "account-service",
-    "namespace": "jenkins-workspace"
+    "namespace": "msa-service"
   },
   "spec": {
     "type": "ClusterIP",
@@ -272,7 +269,7 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/jenkins-workspace/deployments/account-service \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/account-service \\
 			--header 'Content-Type: application/strategic-merge-patch+json' \\
 			--data-raw '{
     "spec": {
