@@ -11,7 +11,7 @@ labels:
   component: cicd
 spec:
   # Use service account that can deploy to all namespaces
-  serviceAccountName: jenkins-agent
+  serviceAccountName: jenkins-worker
   containers:
   - name: git
     image: alpine/git:v2.34.2
@@ -54,7 +54,7 @@ spec:
 	   steps {
 	     container ('git') {
 		   sh """
-		     git clone -b docker-build https://github.com/chupdachups/product-backend-app.git product-service
+		     git clone -b k8s https://github.com/chupdachups/product-backend-app.git product-service
 		   """
 		 }
 	   }
@@ -63,7 +63,7 @@ spec:
       steps {
         container('maven') {
           sh """
-			mvn -f product-service/pom.xml package -DskipTests -Pdev
+			mvn -f product-service/pom.xml package -DskipTests
           """
         }
       }
@@ -97,13 +97,29 @@ spec:
         }
       }
     }
+    stage('deploy-delete') {
+	  steps {
+	    container('curl') {
+		  sh """
+		    #내부 API 서버 호스트 이름을 가리킨다
+			APISERVER=https://kubernetes.default.svc
+			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
+			NAMESPACE=\$(cat \${SERVICEACCOUNT}/namespace)
+			TOKEN=\$(cat \${SERVICEACCOUNT}/token)
+			CACERT=\${SERVICEACCOUNT}/ca.crt
+			curl --cacert \${CACERT} \\
+			--header "Authorization: Bearer \${TOKEN}" \\
+			-X DELETE \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/product-service \\
+		  """
+		}
+	  }
+	}
 	stage('deploy-deploy') {
 	  steps {
 	    container('curl') {
 		  sh """
 		    #내부 API 서버 호스트 이름을 가리킨다
 			APISERVER=https://kubernetes.default.svc
-			echo \${APISERVER}
 
 			#서비스어카운트(ServiceAccount) 토큰 경로
 			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
@@ -120,14 +136,14 @@ spec:
 			# TOKEN으로 API를 탐색한다
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X POST \${APISERVER}/apis/apps/v1/namespaces/\${NAMESPACE}/deployments \\
+			-X POST \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments \\
 			--header 'Content-Type: application/json' \\
 			--data-raw '{
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
     "name": "product-service",
-    "namespace": "jenkins-workspace",
+    "namespace": "msa-service",
     "labels": {
       "app": "product-service"
     }
@@ -149,63 +165,7 @@ spec:
         "containers": [
           {
             "name": "product-service",
-            "image": "chupdachups/product-service:latest",
-            "ports": [
-              {
-                "containerPort": 8071
-              }
-            ]
-          }
-        ]
-      }
-    }
-  }
-}'
-		  """
-		}
-	  }
-	}
-	stage('deploy-patch') {
-	  steps {
-	    container('curl') {
-		  sh """
-			APISERVER=https://kubernetes.default.svc
-			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
-			NAMESPACE=\$(cat \${SERVICEACCOUNT}/namespace)
-			TOKEN=\$(cat \${SERVICEACCOUNT}/token)
-			CACERT=\${SERVICEACCOUNT}/ca.crt
-			curl --cacert \${CACERT} \\
-			--header "Authorization: Bearer \${TOKEN}" \\
-			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/\${NAMESPACE}/deployments \\
-			--header 'application/strategic-merge-patch+json' \\
-			--data-raw '{
-  "apiVersion": "apps/v1",
-  "kind": "Deployment",
-  "metadata": {
-    "name": "product-service",
-    "namespace": "jenkins-workspace",
-    "labels": {
-      "app": "product-service"
-    }
-  },
-  "spec": {
-    "replicas": 1,
-    "selector": {
-      "matchLabels": {
-        "app": "product-service"
-      }
-    },
-    "template": {
-      "metadata": {
-        "labels": {
-          "app": "product-service"
-        }
-      },
-      "spec": {
-        "containers": [
-          {
-            "name": "product-service",
-            "image": "chupdachups/product-service:latest",
+            "image": "chupdachups/product-service:$BUILD_NUMBER",
             "ports": [
               {
                 "containerPort": 8071
@@ -232,14 +192,14 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X POST \${APISERVER}/api/v1/namespaces/\${NAMESPACE}/services \\
+			-X POST \${APISERVER}/api/v1/namespaces/msa-service/services \\
 			--header 'Content-Type: application/json' \\
 			--data-raw '{
   "apiVersion": "v1",
   "kind": "Service",
   "metadata": {
     "name": "product-service",
-    "namespace": "jenkins-workspace"
+    "namespace": "msa-service"
   },
   "spec": {
     "type": "ClusterIP",
@@ -269,7 +229,7 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/jenkins-workspace/deployments/product-service \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/product-service \\
 			--header 'Content-Type: application/strategic-merge-patch+json' \\
 			--data-raw '{
     "spec": {

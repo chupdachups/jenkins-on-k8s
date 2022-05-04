@@ -1,7 +1,7 @@
 pipeline {
   agent {
     kubernetes {
-      label 'account-service'
+      label 'front-end'
       defaultContainer 'jnlp'
       yaml """
 apiVersion: v1
@@ -18,14 +18,11 @@ spec:
     command:
     - cat
     tty: true
-  - name: maven
-    image: maven:3.8.4-openjdk-8-slim
+  - name: node
+    image: node:16.15-alpine
     command:
     - cat
     tty: true
-    volumeMounts:
-      - mountPath: "/root/.m2"
-        name: m2
   - name: docker
     image: docker:20.10.14-dind-alpine3.15
     command:
@@ -43,9 +40,6 @@ spec:
     - name: docker-sock
       hostPath:
         path: /var/run/docker.sock
-    - name: m2
-      persistentVolumeClaim:
-        claimName: m2
 """
 }
    }
@@ -54,26 +48,31 @@ spec:
 	   steps {
 	     container ('git') {
 		   sh """
-		     git clone -b k8s https://github.com/chupdachups/account-backend-app.git account-service
+		     git clone -b k8s https://github.com/chupdachups/vue-prontend-example.git front-end
 		   """
 		 }
 	   }
 	}
-    stage('SrcBuild') {
-      steps {
-        container('maven') {
-          sh """
-			mvn -f account-service/pom.xml package -DskipTests
-          """
-        }
-      }
-    }
+//     stage('SrcBuild') {
+//       steps {
+//         container('node') {
+//           sh """
+// 			cd ./front-end
+// 			npm install
+// 			export NODE_ENV=production
+// 			npm run build
+// 			cd ..
+//           """
+//         }
+//       }
+//     }
     stage('ImageBuild') {
       steps {
         container('docker') {
           sh """
-             docker build -t chupdachups/account-service:$BUILD_NUMBER -f account-service/dockerfile account-service
-             docker tag chupdachups/account-service:$BUILD_NUMBER chupdachups/account-service:latest
+             ls -l
+             docker build -t chupdachups/front-end-app:$BUILD_NUMBER -f front-end/dockerfile front-end
+             docker tag chupdachups/front-end-app:$BUILD_NUMBER chupdachups/front-end-app:latest
           """
         }
       }
@@ -91,8 +90,8 @@ spec:
       steps {
         container('docker') {
           sh """
-             docker push chupdachups/account-service:$BUILD_NUMBER
-             docker push chupdachups/account-service:latest
+             docker push chupdachups/front-end-app:$BUILD_NUMBER
+             docker push chupdachups/front-end-app:latest
           """
         }
       }
@@ -109,7 +108,7 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X DELETE \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/account-service \\
+			-X DELETE \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/front-end-app \\
 		  """
 		}
 	  }
@@ -142,33 +141,33 @@ spec:
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
-    "name": "account-service",
+    "name": "front-end-app",
     "namespace": "msa-service",
     "labels": {
-      "app": "account-service"
+      "app": "front-end-app"
     }
   },
   "spec": {
     "replicas": 1,
     "selector": {
       "matchLabels": {
-        "app": "account-service"
+        "app": "front-end-app"
       }
     },
     "template": {
       "metadata": {
         "labels": {
-          "app": "account-service"
+          "app": "front-end-app"
         }
       },
       "spec": {
         "containers": [
           {
-            "name": "account-service",
-            "image": "chupdachups/account-service:latest",
+            "name": "front-end-app",
+            "image": "chupdachups/front-end-app:$BUILD_NUMBER",
             "ports": [
               {
-                "containerPort": 8070
+                "containerPort": 8080
               }
             ]
           }
@@ -198,19 +197,20 @@ spec:
   "apiVersion": "v1",
   "kind": "Service",
   "metadata": {
-    "name": "account-service",
-    "namespace": "msa-service"
+    "name": "front-end-app",
+    "namespace": "front-end-app"
   },
   "spec": {
-    "type": "ClusterIP",
+    "type": "NodePort",
     "ports": [
       {
-        "port": 8070,
-        "targetPort": 8070
+        "port": 8080,
+        "targetPort": 8080,
+		"nodePort": 32000
       }
     ],
     "selector": {
-      "app": "account-service"
+      "app": "front-end-app"
     }
   }
 }'
@@ -229,7 +229,7 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/account-service \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/front-end-app \\
 			--header 'Content-Type: application/strategic-merge-patch+json' \\
 			--data-raw '{
     "spec": {
