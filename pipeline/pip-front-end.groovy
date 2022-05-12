@@ -53,24 +53,23 @@ spec:
 		 }
 	   }
 	}
-//     stage('SrcBuild') {
-//       steps {
-//         container('node') {
-//           sh """
-// 			cd ./front-end
-// 			npm install
-// 			export NODE_ENV=production
-// 			npm run build
-// 			cd ..
-//           """
-//         }
-//       }
-//     }
+    stage('SrcBuild') {
+      steps {
+        container('node') {
+          sh """
+			cd ./front-end
+			npm install
+			export NODE_ENV=production
+			npm run build
+			cd ..
+          """
+        }
+      }
+    }
     stage('ImageBuild') {
       steps {
         container('docker') {
           sh """
-             ls -l
              docker build -t chupdachups/front-end-app:$BUILD_NUMBER -f front-end/dockerfile front-end
              docker tag chupdachups/front-end-app:$BUILD_NUMBER chupdachups/front-end-app:latest
           """
@@ -167,7 +166,7 @@ spec:
             "image": "chupdachups/front-end-app:$BUILD_NUMBER",
             "ports": [
               {
-                "containerPort": 8080
+                "containerPort": 80
               }
             ]
           }
@@ -198,14 +197,14 @@ spec:
   "kind": "Service",
   "metadata": {
     "name": "front-end-app",
-    "namespace": "front-end-app"
+    "namespace": "msa-service"
   },
   "spec": {
     "type": "NodePort",
     "ports": [
       {
         "port": 8080,
-        "targetPort": 8080,
+        "targetPort": 80,
 		"nodePort": 32000
       }
     ],
