@@ -44,7 +44,7 @@ spec:
       hostPath:
         path: /var/run/docker.sock
     - name: m2
-      emptyDir: {}
+      emptyDir: { }
 """
 }
    }
