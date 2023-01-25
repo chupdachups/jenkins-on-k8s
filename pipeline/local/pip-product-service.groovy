@@ -1,7 +1,7 @@
 pipeline {
   agent {
     kubernetes {
-      label 'reserve-service'
+      label 'product-service'
       defaultContainer 'jnlp'
       yaml """
 apiVersion: v1
@@ -44,8 +44,7 @@ spec:
       hostPath:
         path: /var/run/docker.sock
     - name: m2
-      persistentVolumeClaim:
-        claimName: m2
+      emptyDir: {}
 """
 }
    }
@@ -54,7 +53,7 @@ spec:
 	   steps {
 	     container ('git') {
 		   sh """
-		     git clone -b k8s https://github.com/chupdachups/reserve-backend-app.git reserve-service
+		     git clone -b k8s https://github.com/chupdachups/product-backend-app.git product-service
 		   """
 		 }
 	   }
@@ -63,7 +62,7 @@ spec:
       steps {
         container('maven') {
           sh """
-			mvn -f reserve-service/pom.xml package -DskipTests
+			mvn -f product-service/pom.xml package -DskipTests
           """
         }
       }
@@ -72,8 +71,8 @@ spec:
       steps {
         container('docker') {
           sh """
-			docker build -t chupdachups/reserve-service:$BUILD_NUMBER -f reserve-service/dockerfile reserve-service
-			docker tag chupdachups/reserve-service:$BUILD_NUMBER chupdachups/reserve-service:latest
+             docker build -t chupdachups/product-service:$BUILD_NUMBER -f product-service/dockerfile product-service
+			 docker tag chupdachups/product-service:$BUILD_NUMBER chupdachups/product-service:latest
           """
         }
       }
@@ -82,7 +81,7 @@ spec:
       steps {
         container('docker') {
           sh """
-			docker login -u chupdachups -p '!Kamika911'
+             docker login -u chupdachups -p '!Kamika911'
           """
         }
       }
@@ -91,8 +90,8 @@ spec:
       steps {
         container('docker') {
           sh """
-			docker push chupdachups/reserve-service:$BUILD_NUMBER
-			docker push chupdachups/reserve-service:latest
+             docker push chupdachups/product-service:$BUILD_NUMBER
+			 docker push chupdachups/product-service:latest
           """
         }
       }
@@ -109,7 +108,7 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X DELETE \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/reserve-service \\
+			-X DELETE \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/product-service \\
 		  """
 		}
 	  }
@@ -143,33 +142,33 @@ spec:
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
-    "name": "reserve-service",
+    "name": "product-service",
     "namespace": "msa-service",
     "labels": {
-      "app": "reserve-service"
+      "app": "product-service"
     }
   },
   "spec": {
     "replicas": 1,
     "selector": {
       "matchLabels": {
-        "app": "reserve-service"
+        "app": "product-service"
       }
     },
     "template": {
       "metadata": {
         "labels": {
-          "app": "reserve-service"
+          "app": "product-service"
         }
       },
       "spec": {
         "containers": [
           {
-            "name": "reserve-service",
-            "image": "chupdachups/reserve-service:latest",
+            "name": "product-service",
+            "image": "chupdachups/product-service:$BUILD_NUMBER",
             "ports": [
               {
-                "containerPort": 8072
+                "containerPort": 8071
               }
             ]
           }
@@ -199,20 +198,20 @@ spec:
   "apiVersion": "v1",
   "kind": "Service",
   "metadata": {
-    "name": "reserve-service",
+    "name": "product-service",
     "namespace": "msa-service"
   },
   "spec": {
     "type": "NodePort",
     "ports": [
       {
-        "port": 8072,
-        "targetPort": 8072,
-        "nodePort": 31072
+        "port": 8071,
+        "targetPort": 8071,
+        "nodePort":31071
       }
     ],
     "selector": {
-      "app": "reserve-service"
+      "app": "product-service"
     }
   }
 }'
@@ -231,7 +230,7 @@ spec:
 			CACERT=\${SERVICEACCOUNT}/ca.crt
 			curl --cacert \${CACERT} \\
 			--header "Authorization: Bearer \${TOKEN}" \\
-			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/reserve-service \\
+			-X PATCH \${APISERVER}/apis/apps/v1/namespaces/msa-service/deployments/product-service \\
 			--header 'Content-Type: application/strategic-merge-patch+json' \\
 			--data-raw '{
     "spec": {

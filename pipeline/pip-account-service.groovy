@@ -202,11 +202,12 @@ spec:
     "namespace": "msa-service"
   },
   "spec": {
-    "type": "ClusterIP",
+    "type": "NodePort",
     "ports": [
       {
         "port": 8070,
-        "targetPort": 8070
+        "targetPort": 8070,
+        "nodePort": 31070
       }
     ],
     "selector": {

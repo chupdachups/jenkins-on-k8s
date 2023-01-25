@@ -120,6 +120,7 @@ spec:
 		  sh """
 		    #내부 API 서버 호스트 이름을 가리킨다
 			APISERVER=https://kubernetes.default.svc
+			echo \${APISERVER}
 
 			#서비스어카운트(ServiceAccount) 토큰 경로
 			SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount
@@ -202,11 +203,12 @@ spec:
     "namespace": "msa-service"
   },
   "spec": {
-    "type": "ClusterIP",
+    "type": "NodePort",
     "ports": [
       {
         "port": 8071,
-        "targetPort": 8071
+        "targetPort": 8071,
+        "nodePort":31071
       }
     ],
     "selector": {
