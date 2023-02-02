@@ -82,7 +82,7 @@ spec:
       steps {
         container('docker') {
           sh """
-             docker login -u chupdachups -p '!Kamika911'
+             docker login -u chupdachups -p 'dockerhub password'
           """
         }
       }
